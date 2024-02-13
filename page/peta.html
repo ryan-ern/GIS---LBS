@@ -174,6 +174,11 @@
                             '</form>' +
                             '</td>\
                 </tr>\
+                <tr>\
+                    <td colspan="2"><strong>Arah Tujuan</strong><br />' +
+                            '<button onclick="openGoogleMaps(' + feature.geometry.coordinates[1] + ',' + feature.geometry.coordinates[0] + ')" class="btn btn-primary">Buka di Google Maps</button>' +
+                            '</td>\
+                </tr>\
             </table>';
 
                         layer.bindPopup(popupContent, {
@@ -195,6 +200,12 @@
                     mouseover: highlightFeature,
                 });
             }
+
+            function openGoogleMaps(latitude, longitude) {
+                var url = "https://www.google.com/maps/dir/?api=1&destination=" + latitude + "," + longitude;
+                window.open(url, "_blank");
+            }
+
 
 
             function style_Data_pemesanan() {
@@ -262,6 +273,27 @@
                 className: "user-label", // Define a CSS class for styling the label if needed
             }).openTooltip();
 
+            // Define the office location coordinates
+            var officeLocation = [-5.3280768, 105.3084374];
+
+            var officeMarker = L.marker(officeLocation, {
+                icon: L.icon({
+                    iconUrl: './page/css/images/marker-icon-2x.png', // Replace with the path to your office marker icon
+                    iconSize: [30, 40],
+                    shadowUrl: './page/css/images/marker-shadow.png', // Provide the path to your shadow image
+                    shadowSize: [70, 40],
+                    shadowAnchor: [22, 20],
+                }),
+            }).addTo(map);
+
+            // Add a tooltip to the office marker
+            officeMarker.bindTooltip("Lokasi Kantor", {
+                permanent: true,
+                direction: "top",
+                offset: [0, -15],
+                className: "user-label", // You can customize the CSS class for styling
+            }).openTooltip();
+
             // Function to calculate the Haversine distance between two coordinates
             function haversineDistance(lat1, lon1, lat2, lon2) {
                 const R = 6371; // Radius of the Earth in kilometers
@@ -275,36 +307,32 @@
                 return distance;
             }
 
-            var nearestLandslideLayer = null; // Variable to store the nearest landslide layer
-            var nearestDistance = Infinity; // Variable to store the nearest distance
-
-            // Function to find the nearest landslide and update the label
-            function findNearestLandslide(userLocation) {
-                nearestLandslideLayer = null;
+            // Update the function to find the nearest customer to the office location
+            function findNearestCustomer(officeLocation) {
+                nearestCustomerLayer = null;
                 nearestDistance = Infinity;
 
                 // Iterate over each layer in the cluster
                 cluster_Data_Pemesanan.eachLayer(function (layer) {
-                    var landslideLocation = layer.getLatLng();
+                    var customerLocation = layer.getLatLng();
                     var distance = haversineDistance(
-                        userLocation[0],
-                        userLocation[1],
-                        landslideLocation.lat,
-                        landslideLocation.lng
+                        officeLocation[0],
+                        officeLocation[1],
+                        customerLocation.lat,
+                        customerLocation.lng
                     );
 
                     // Update nearest if the current distance is smaller
                     if (distance < nearestDistance) {
                         nearestDistance = distance;
-                        nearestLandslideLayer = layer;
+                        nearestCustomerLayer = layer;
                     }
                 });
 
                 // Update the label with the nearest distance and location
-                if (nearestLandslideLayer) {
-                    var nearestLocation = nearestLandslideLayer.feature.properties["Nama"];
-                    userMarker.setTooltipContent("Lokasi Anda - Jarak Pelanggan Terdekat: " + nearestDistance.toFixed(2) + " km");
-                    nearestLandslideLayer.bindTooltip("Lokasi Pelanggan Terdekat - Jarak: " + nearestDistance.toFixed(2) + " km", {
+                if (nearestCustomerLayer) {
+                    var nearestLocation = nearestCustomerLayer.feature.properties["Nama"];
+                    nearestCustomerLayer.bindTooltip("Pelanggan Terdekat Kantor- Jarak ke Pelanggan: " + nearestDistance.toFixed(2) + " km", {
                         permanent: true,
                         direction: "top",
                         offset: [0, -15],
@@ -313,11 +341,24 @@
                 }
             }
 
-            // Function to update the user's marker location
+            // Update the function to update the user's marker location and find the nearest customer
             function updateUserLocation(location) {
                 userMarker.setLatLng(location);
-                findNearestLandslide(location); // Find and update the nearest landslide
+                var distanceToOffice = haversineDistance(location[0], location[1], officeLocation[0], officeLocation[1]);
+                userMarker.setTooltipContent("Lokasi Anda - Jarak ke Kantor: " + distanceToOffice.toFixed(2) + " km");
+                findNearestCustomer(officeLocation); // Find and update the nearest customer to the office location
+
+                if (nearestCustomerLayer) {
+                    var distanceToNearestCustomer = haversineDistance(location[0], location[1], nearestCustomerLayer.getLatLng().lat, nearestCustomerLayer.getLatLng().lng);
+                    userMarker.bindTooltip("Lokasi Anda - Jarak Pelanggan Terdekat Kantor: " + distanceToNearestCustomer.toFixed(2) + " km", {
+                        permanent: true,
+                        direction: "top",
+                        offset: [0, -15],
+                        className: "user-label",
+                    }).openTooltip();
+                }
             }
+
 
             // Get the user's location using the Geolocation API
             function getUserLocation() {
@@ -350,12 +391,15 @@
             document.getElementsByClassName("leaflet-control-geocoder-icon")[0].className += " fa fa-search";
             document.getElementsByClassName("leaflet-control-geocoder-icon")[0].title += "Search for a place";
 
-            var baseMaps = {};
+            var baseMaps = {
+            };
+
             L.control
                 .layers(baseMaps, {
                     '<img src="./page/legend/Data_Pemesanan.png" /> Data Pemesanan': cluster_Data_Pemesanan,
-                    'Google Maps': layer_GoogleMaps_0,
-                    'User Location': userMarker, // Add the user's location marker to the layer control
+                    'Maps': layer_GoogleMaps_0,
+                    'Lokasi User': userMarker, // Add the user's location marker to the layer control
+                    'Lokasi Kantor': officeMarker, // Add the user's location marker to the layer control
                 })
                 .addTo(map);
 

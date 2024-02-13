@@ -72,7 +72,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
         </div>
 
         <div class="form-group">
-            <label for="alamat">Alamat:</label>
+            <label for="alamat">Alamat Lengkap:</label>
             <textarea class="form-control" id="alamat" name="alamat" rows="4"></textarea>
         </div>
 
