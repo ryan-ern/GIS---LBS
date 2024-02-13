@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link rel="stylesheet" href="./page/css/leaflet.css" />
+        <link rel="stylesheet" href="./page/css/qgis.css" />
+        <link rel="stylesheet" href="./page/css/fontawesome-all.min.css" />
+        <link rel="stylesheet" href="./page/css/MarkerCluster.css" />
+        <link rel="stylesheet" href="./page/css/MarkerCluster.Default.css" />
+        <link rel="stylesheet" href="./page/css/leaflet-search.css" />
+        <link rel="stylesheet" href="./page/css/leaflet-control-geocoder.Geocoder.css" />
+
+        <style>
+            #map {
+                width: 100%;
+                height: 500px;
+                border-radius: 10px;
+                box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            }
+
+            .user-label {
+                font-weight: bold;
+                color: #000;
+                background-color: #fff;
+                border: 1px solid #000;
+                border-radius: 5px;
+                padding: 5px;
+            }
+
+            .pesanan-label {
+                color: #fff;
+                font-size: 10pt;
+                font-weight: bold;
+                font-family: 'Segoe UI Variable Small Semibol', sans-serif;
+                background-color: #354b8f;
+                padding: 5px;
+                border-radius: 20px;
+            }
+
+            .pesanan-label-pending {
+                color: #000;
+                font-size: 10pt;
+                font-weight: bold;
+                font-family: 'Segoe UI Variable Small Semibol', sans-serif;
+                background-color: #caf700;
+                padding: 5px;
+                border-radius: 20px;
+            }
+
+            .pesanan-label-diproses {
+                color: #000;
+                font-size: 10pt;
+                font-weight: bold;
+                font-family: 'Segoe UI Variable Small Semibol', sans-serif;
+                background-color: #00f73e;
+                padding: 5px;
+                border-radius: 20px;
+            }
+        </style>
+        <title></title>
+    </head>
+
+    <body>
+        <div id="map" style="height: 80vh; border-radius: 20px;" class="shadow"></div>
+        <script src="./page/js/qgis_expressions.js"></script>
+        <script src="./page/js/leaflet.js"></script>
+        <script src="./page/js/leaflet.rotatedMarker.js"></script>
+        <script src="./page/js/leaflet.pattern.js"></script>
+        <script src="./page/js/leaflet-hash.js"></script>
+        <script src="./page/js/Autolinker.min.js"></script>
+        <script src="./page/js/rbush.min.js"></script>
+        <script src="./page/js/labelgun.min.js"></script>
+        <script src="./page/js/labels.js"></script>
+        <script src="./page/js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="./page/js/leaflet.markercluster.js"></script>
+        <script src="./page/js/leaflet-search.js"></script>
+        <script src="./connection/peta.php"></script>
+
+        <script>
+            var highlightLayer;
+            var userMarker;
+
+            function highlightFeature(e) {
+                highlightLayer = e.target;
+                highlightLayer.openPopup();
+            }
+
+            var map = L.map("map", {
+                zoomControl: true,
+                maxZoom: 28,
+                minZoom: 1,
+            }).fitBounds([
+                [-5.150668812520051, 102.47462187010942],
+                [-3.496177764580196, 105.8554026341071],
+            ]);
+
+            var hash = new L.Hash(map);
+            map.attributionControl.setPrefix(
+                '<a href="https://github.com/ryan-ern/GIS-PantauLongsorBengkulu" target="_blank">Pantau Longsor Bengkulu</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>'
+            );
+
+            var autolinker = new Autolinker({
+                truncate: {
+                    length: 30,
+                    location: "smart",
+                },
+            });
+
+            var bounds_group = new L.featureGroup([]);
+
+            function setBounds() { }
+
+            map.createPane("pane_GoogleMaps_0");
+            map.getPane("pane_GoogleMaps_0").style.zIndex = 400;
+
+            var layer_GoogleMaps_0 = L.tileLayer(
+                "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+                pane: "pane_GoogleMaps_0",
+                opacity: 1.0,
+                attribution: "",
+                minZoom: 1,
+                maxZoom: 28,
+                minNativeZoom: 0,
+                maxNativeZoom: 19,
+            }
+            );
+            layer_GoogleMaps_0;
+            map.addLayer(layer_GoogleMaps_0);
+
+            function pop_Data_Pemesanan(feature, layer) {
+                layer.on({
+                    click: function (e) {
+                        var popupContent =
+                            '<table>\
+                <tr>\
+                    <td colspan="2"><strong>Status</strong><br />' +
+                            (feature.properties["status"] !== null ?
+                                autolinker.link(feature.properties["status"].toLocaleString()) : "") +
+                            '</td>\
+                </tr>\
+                <tr>\
+                    <td colspan="2"><strong>Tanggal</strong><br />' +
+                            (feature.properties["tanggal"] !== null ?
+                                autolinker.link(feature.properties["tanggal"].toLocaleString()) : "") +
+                            '</td>\
+                </tr>\
+                <tr>\
+                    <td colspan="2"><strong>Nama</strong><br />' +
+                            (feature.properties["nama"] !== null ?
+                                autolinker.link(feature.properties["nama"].toLocaleString()) : "") +
+                            '</td>\
+                </tr>\
+                <tr>\
+                    <td colspan="2"><strong>Nomor</strong><br />' +
+                            (feature.properties["nomor"] !== null ?
+                                autolinker.link(feature.properties["nomor"].toLocaleString()) : "") +
+                            '</td>\
+                </tr>\
+                <tr>\
+                    <td colspan="2"><strong>Keterangan</strong><br />' +
+                            (feature.properties["keterangan"] !== null ?
+                                autolinker.link(feature.properties["keterangan"].toLocaleString()) : "") +
+                            '</td>\
+                </tr>\
+                <tr>\
+                     <td colspan="2"><strong>Aksi</strong><br />' +
+                            '<form action="?page=Edit-Status&id=' + feature.properties["id"] + '" method="POST">' +
+                            '<button type="submit" class="btn btn-primary">Ubah Status</button>' +
+                            '</form>' +
+                            '</td>\
+                </tr>\
+            </table>';
+
+                        layer.bindPopup(popupContent, {
+                            maxHeight: 400,
+                        }).openPopup();
+                    }
+                });
+
+                layer.on({
+                    click: function (e) {
+                        if (typeof layer.closePopup == "function") {
+                            layer.closePopup();
+                        } else {
+                            layer.eachLayer(function (feature) {
+                                feature.closePopup();
+                            });
+                        }
+                    },
+                    mouseover: highlightFeature,
+                });
+            }
+
+
+            function style_Data_pemesanan() {
+                return {
+                    pane: "pane_Data_pemesanan",
+                    rotationAngle: 0.0,
+                    rotationOrigin: "center center",
+                    icon: L.icon({
+                        iconUrl: './page/css/images/pelanggan.png', // You may need to provide your own user marker icon
+                        shadowUrl: './page/css/images/marker-shadow.png', // Provide the path to your shadow image
+                        iconSize: [30, 40],
+                        shadowSize: [70, 40],
+                        shadowAnchor: [20, 20],
+                    }),
+                    interactive: true,
+                };
+            }
+
+            map.createPane("pane_Data_pemesanan");
+            map.getPane("pane_Data_pemesanan").style.zIndex = 411;
+            map.getPane("pane_Data_pemesanan").style["mix-blend-mode"] = "normal";
+
+            var layer_Data_Pemesanan = new L.geoJson(json_Data_Pemesanan, {
+                attribution: "",
+                interactive: true,
+                dataVar: "json_Data_Pemesanan",
+                layerName: "layer_Data_Pemesanan",
+                pane: "pane_Data_pemesanan",
+                onEachFeature: pop_Data_Pemesanan,
+                pointToLayer: function (feature, latlng) {
+                    var context = {
+                        feature: feature,
+                        variables: {},
+                    };
+                    return L.marker(latlng, style_Data_pemesanan(feature));
+                },
+            });
+
+            var cluster_Data_Pemesanan = new L.MarkerClusterGroup({
+                showCoverageOnHover: false,
+                spiderfyDistanceMultiplier: 2,
+            });
+
+            cluster_Data_Pemesanan.addLayer(layer_Data_Pemesanan);
+
+            bounds_group.addLayer(layer_Data_Pemesanan);
+            cluster_Data_Pemesanan.addTo(map);
+
+            // Create a new marker for tracking user's location
+            userMarker = L.marker([0, 0], {
+                icon: L.icon({
+                    iconUrl: './page/css/images/marker-icon-2x.png', // You may need to provide your own user marker icon
+                    iconSize: [30, 40],
+                    shadowUrl: './page/css/images/marker-shadow.png', // Provide the path to your shadow image
+                    shadowSize: [70, 40],
+                    shadowAnchor: [22, 20],
+                }),
+                draggable: false, // Allow the marker to be draggable
+            }).addTo(map);
+
+            userMarker.bindTooltip("Lokasi Anda", {
+                permanent: true,
+                direction: "top",
+                offset: [0, -15],
+                className: "user-label", // Define a CSS class for styling the label if needed
+            }).openTooltip();
+
+            // Function to calculate the Haversine distance between two coordinates
+            function haversineDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371; // Radius of the Earth in kilometers
+                const dLat = (lat2 - lat1) * (Math.PI / 180);
+                const dLon = (lon2 - lon1) * (Math.PI / 180);
+                const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const distance = R * c;
+                return distance;
+            }
+
+            var nearestLandslideLayer = null; // Variable to store the nearest landslide layer
+            var nearestDistance = Infinity; // Variable to store the nearest distance
+
+            // Function to find the nearest landslide and update the label
+            function findNearestLandslide(userLocation) {
+                nearestLandslideLayer = null;
+                nearestDistance = Infinity;
+
+                // Iterate over each layer in the cluster
+                cluster_Data_Pemesanan.eachLayer(function (layer) {
+                    var landslideLocation = layer.getLatLng();
+                    var distance = haversineDistance(
+                        userLocation[0],
+                        userLocation[1],
+                        landslideLocation.lat,
+                        landslideLocation.lng
+                    );
+
+                    // Update nearest if the current distance is smaller
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        nearestLandslideLayer = layer;
+                    }
+                });
+
+                // Update the label with the nearest distance and location
+                if (nearestLandslideLayer) {
+                    var nearestLocation = nearestLandslideLayer.feature.properties["Nama"];
+                    userMarker.setTooltipContent("Lokasi Anda - Jarak Pelanggan Terdekat: " + nearestDistance.toFixed(2) + " km");
+                    nearestLandslideLayer.bindTooltip("Lokasi Pelanggan Terdekat - Jarak: " + nearestDistance.toFixed(2) + " km", {
+                        permanent: true,
+                        direction: "top",
+                        offset: [0, -15],
+                        className: "user-label",
+                    }).openTooltip();
+                }
+            }
+
+            // Function to update the user's marker location
+            function updateUserLocation(location) {
+                userMarker.setLatLng(location);
+                findNearestLandslide(location); // Find and update the nearest landslide
+            }
+
+            // Get the user's location using the Geolocation API
+            function getUserLocation() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function (position) {
+                            var userLocation = [position.coords.latitude, position.coords.longitude];
+                            updateUserLocation(userLocation);
+                            map.setView(userLocation, 15); // Set the map view to the user's location
+                        },
+                        function (error) {
+                            console.error('Error getting user location:', error.message);
+                        }
+                    );
+                } else {
+                    console.error('Geolocation is not supported by this browser.');
+                }
+            }
+
+            // Call the function to get and update the user's location
+            getUserLocation();
+
+            var osmGeocoder = new L.Control.Geocoder({
+                collapsed: true,
+                position: "topleft",
+                text: "Search",
+                title: "Testing",
+            }).addTo(map);
+
+            document.getElementsByClassName("leaflet-control-geocoder-icon")[0].className += " fa fa-search";
+            document.getElementsByClassName("leaflet-control-geocoder-icon")[0].title += "Search for a place";
+
+            var baseMaps = {};
+            L.control
+                .layers(baseMaps, {
+                    '<img src="./page/legend/Data_Pemesanan.png" /> Data Pemesanan': cluster_Data_Pemesanan,
+                    'Google Maps': layer_GoogleMaps_0,
+                    'User Location': userMarker, // Add the user's location marker to the layer control
+                })
+                .addTo(map);
+
+            setBounds();
+
+            layer_Data_Pemesanan.eachLayer(function (layer) {
+                var context = {
+                    feature: layer.feature,
+                    variables: {},
+                };
+
+                var tanggal = layer.feature.properties["tanggal"];
+                var status = layer.feature.properties["status"];
+
+                tanggal = tanggal !== null ? tanggal.toLocaleString() : "Tanggal tidak tersedia";
+                status = status !== null ? status : "Status tidak tersedia";
+
+                var tooltipContent = tanggal + " | " + status;
+
+                var className = "pesanan-label";
+                if (status.toLowerCase() === "pending") {
+                    className = "pesanan-label-pending";
+                } else if (status.toLowerCase() === "diproses") {
+                    className = "pesanan-label-diproses";
+                }
+
+                layer.bindTooltip(tooltipContent, {
+                    permanent: true,
+                    direction: "top",
+                    offset: [0, -15],
+                    className: className,
+                }).openTooltip();
+            })
+
+            map.addControl(
+                new L.Control.Search({
+                    layer: cluster_Data_Pemesanan,
+                    initial: false,
+                    hideMarkerOnCollapse: true,
+                    propertyName: "Nama",
+                })
+            );
+
+            document.getElementsByClassName("search-button")[0].className += " fa fa-binoculars";
+            resetLabels([layer_Data_Pemesanan]);
+
+            map.on("zoomend", function () {
+                resetLabels([layer_Data_Pemesanan]);
+            });
+
+            map.on("layeradd", function () {
+                resetLabels([layer_Data_Pemesanan]);
+            });
+
+            map.on("layerremove", function () {
+                resetLabels([layer_Data_Pemesanan]);
+            });
+        </script>
+    </body>
+
+</html>
