@@ -105,7 +105,7 @@ if (!isset($_SESSION['role'])) {
     <!-- Page content holder -->
     <div class="page-content p-5" id="content" style="background-color: #354b8f; min-height: 100vh;">
         <!-- Toggle button -->
-        <button id=" sidebarCollapse" type="button" class="btn btn-light bg-white shadow-sm px-4 mb-4">
+        <button id="sidebarCollapse" type="button" class="btn btn-light bg-white shadow-sm px-4 mb-4">
             <i class="bi bi-menu-button-wide-fill text-primary fa-fw"></i>
             <small class="text-uppercase font-weight-bold">Menu</small>
         </button>
